@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Entorno local
+.env
+
+# Documentos subidos (contenido de usuario, no pertenece al repo)
+docs/*
+!docs/.gitkeep
+
+# Streamlit
+.streamlit/secrets.toml
+
+# SO / editor
+.DS_Store
+.vscode/

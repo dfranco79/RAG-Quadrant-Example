@@ -1,0 +1,9 @@
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.32,<0.33
+python-multipart>=0.0.12
+langchain-ollama>=0.2,<0.3
+langchain-text-splitters>=0.3,<0.4
+qdrant-client>=1.11,<2.0
+pypdf>=5.0,<6.0
+python-docx>=1.1,<2.0
+pydantic>=2.8,<3.0
