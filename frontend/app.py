@@ -3,12 +3,34 @@ import os
 import requests
 import streamlit as st
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+
+def _get_backend_url() -> str:
+    """En Docker Compose viene por variable de entorno. En Streamlit
+    Cloud se define como Secret (Settings > Secrets) y llega por
+    st.secrets. Se prueba st.secrets primero y se cae a env var."""
+    try:
+        return st.secrets["BACKEND_URL"]
+    except Exception:
+        return os.getenv("BACKEND_URL", "http://backend:8000")
+
+
+BACKEND_URL = _get_backend_url()
 
 st.set_page_config(page_title="RAG local", page_icon="📄", layout="wide")
 st.title("📄 Preguntas sobre tus documentos")
 
-tab_ingest, tab_ask = st.tabs(["Subir documentos", "Preguntar"])
+
+def _fetch_sources():
+    try:
+        resp = requests.get(f"{BACKEND_URL}/documents", timeout=30)
+        if resp.ok:
+            return resp.json().get("sources", [])
+    except requests.RequestException:
+        pass
+    return []
+
+
+tab_ingest, tab_ask, tab_summary = st.tabs(["Subir documentos", "Preguntar", "Resumir"])
 
 with tab_ingest:
     st.subheader("Subir documentos")
@@ -27,7 +49,7 @@ with tab_ingest:
                     resp = requests.post(
                         f"{BACKEND_URL}/ingest",
                         files={"file": (file.name, file.getvalue())},
-                        timeout=300,
+                        timeout=600000,
                     )
                 except requests.RequestException as exc:
                     st.error(f"{file.name}: no se pudo contactar al backend ({exc})")
@@ -41,6 +63,14 @@ with tab_ingest:
 
 with tab_ask:
     st.subheader("Preguntar")
+
+    sources = _fetch_sources()
+    options = ["Todos los documentos"] + sources
+    selected = st.selectbox("Buscar en", options, key="ask_source")
+    source_filter = None if selected == "Todos los documentos" else selected
+
+    if not sources:
+        st.info("Todavia no hay documentos indexados. Sube uno en la pestaña anterior.")
 
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -59,7 +89,9 @@ with tab_ask:
             with st.spinner("Pensando..."):
                 try:
                     resp = requests.post(
-                        f"{BACKEND_URL}/ask", json={"question": question}, timeout=300
+                        f"{BACKEND_URL}/ask",
+                        json={"question": question, "source": source_filter},
+                        timeout=600000,
                     )
                 except requests.RequestException as exc:
                     resp = None
@@ -82,3 +114,36 @@ with tab_ask:
                     st.error(answer_text)
 
         st.session_state.history.append({"role": "assistant", "content": answer_text})
+
+with tab_summary:
+    st.subheader("Resumir un documento completo")
+    st.caption(
+        "A diferencia de 'Preguntar', esto usa TODOS los fragmentos del "
+        "documento elegido, no solo los mas parecidos a una pregunta — "
+        "sirve para pedir un resumen general."
+    )
+
+    sources = _fetch_sources()
+    if not sources:
+        st.info("Todavia no hay documentos indexados. Sube uno en la primera pestaña.")
+    else:
+        doc_to_summarize = st.selectbox("Documento", sources, key="summary_source")
+        if st.button("Generar resumen"):
+            with st.spinner(f"Resumiendo {doc_to_summarize}..."):
+                try:
+                    resp = requests.post(
+                        f"{BACKEND_URL}/summarize",
+                        json={"source": doc_to_summarize},
+                        timeout=600,
+                    )
+                except requests.RequestException as exc:
+                    resp = None
+                    st.error(f"No se pudo contactar al backend ({exc})")
+
+            if resp is not None:
+                if resp.ok:
+                    data = resp.json()
+                    st.write(data["summary"])
+                    st.caption(f"Basado en {data['chunks_used']} fragmentos del documento.")
+                else:
+                    st.error(resp.text)

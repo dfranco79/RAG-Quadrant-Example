@@ -1,0 +1,13 @@
+git add .
+git commit -m "Segunda version: RAG local con Ollama + Qdrant"
+git remote add origin https://github.com/dfranco79/RAG-Quadrant-Example.git
+git branch -M main
+git push -u origin main
+
+docker compose up -d --build backend frontend
+
+dashboard de quadrant
+http://localhost:6333/dashboard
+
+saber si  hay docuimentos cargados
+http://localhost:8000/documents
