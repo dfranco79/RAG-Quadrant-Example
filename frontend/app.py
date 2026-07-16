@@ -49,7 +49,7 @@ with tab_ingest:
                     resp = requests.post(
                         f"{BACKEND_URL}/ingest",
                         files={"file": (file.name, file.getvalue())},
-                        timeout=600000,
+                        timeout=6000000,
                     )
                 except requests.RequestException as exc:
                     st.error(f"{file.name}: no se pudo contactar al backend ({exc})")
@@ -91,7 +91,7 @@ with tab_ask:
                     resp = requests.post(
                         f"{BACKEND_URL}/ask",
                         json={"question": question, "source": source_filter},
-                        timeout=600000,
+                        timeout=6000000,
                     )
                 except requests.RequestException as exc:
                     resp = None
